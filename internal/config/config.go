@@ -3,6 +3,9 @@ package config
 import (
 	"os"
 	"log"
+	"filepath"
+	"encoding/json"
+	"fmt"
 )
 
 const configFileName = ".gatorconfig.json"
@@ -18,21 +21,38 @@ func getConfigFilePath() (string, error) {
 		log.Print("Error finding home directory")
 		return "", err
 	}
-	return home, nil
+	configFile := filepath.Join(home, configFileName)
+	return configFile, nil
 } 
 
-func Read() Config {
-	
-	home := getConfigFilePath()
-	configFile := home + configFileName
+func Read() (Config, error) {
+	c := Config{}
 
+	configFile, err := getConfigFilePath()
+	if err != nil {
+		log.Print("Error getting file path")
+		return Config{}, err
+	}
 	reader, err := os.Readfile(configFile)
 	if err != nil {
 		log.Print("Error reading file at home directory")
-		return err
+		return Config{}, err
 	}
+	
+	err = json.Unmarshal(reader, &c)
+	if err != nil {
+		log.Print("Error unmarshalling JSON file")
+		return Config{}, err
+	}
+
+	return c, nil
+
 }
 
-func (c *Config) SetUser(user string) {
+func (c *Config) SetUser(user string) error {
 	c.CurrentUserName = user
+	if c.CurrentUserName == "" {
+		return fmt.Errorf("Error setting username")
+	}
+	return nil
 }
