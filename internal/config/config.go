@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 	"log"
-	"filepath"
+	"path/filepath"
 	"encoding/json"
 	"fmt"
 )
@@ -26,33 +26,62 @@ func getConfigFilePath() (string, error) {
 } 
 
 func Read() (Config, error) {
-	c := Config{}
+	cfg := Config{}
 
 	configFile, err := getConfigFilePath()
 	if err != nil {
 		log.Print("Error getting file path")
 		return Config{}, err
 	}
-	reader, err := os.Readfile(configFile)
+	reader, err := os.ReadFile(configFile)
 	if err != nil {
 		log.Print("Error reading file at home directory")
 		return Config{}, err
 	}
 	
-	err = json.Unmarshal(reader, &c)
+	err = json.Unmarshal(reader, &cfg)
 	if err != nil {
 		log.Print("Error unmarshalling JSON file")
 		return Config{}, err
 	}
 
-	return c, nil
+	return cfg, nil
 
 }
 
-func (c *Config) SetUser(user string) error {
-	c.CurrentUserName = user
-	if c.CurrentUserName == "" {
+func (cfg *Config) SetUser(user string) error {
+	cfg.CurrentUserName = user
+	if cfg.CurrentUserName == "" {
 		return fmt.Errorf("Error setting username")
 	}
+	err := write(cfg)
+	if err != nil {
+		log.Print("Error setting username")
+		return err
+	}
+	return nil
+}
+
+func write(cfg *Config) error {
+	
+	body, err := json.Marshal(*cfg) // I'm not sure if thats what I actually want to marshall??
+	if err != nil {
+		log.Print("Error marshalling JSON")
+		return err
+	}
+	// Add the body into something here, like a writer?
+	configFile, err := getConfigFilePath()
+	if err != nil {
+		log.Print("Error getting file path")
+		return err
+	}
+	
+
+	err = os.WriteFile(configFile, body, 0666)
+	if err != nil {
+		log.Print("Error writing file to path")
+		return err
+	}
+	
 	return nil
 }
