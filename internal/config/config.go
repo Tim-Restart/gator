@@ -57,7 +57,7 @@ func (cfg *Config) SetUser(user string) error {
 	if cfg.CurrentUserName == "" {
 		return fmt.Errorf("Error setting username")
 	}
-	err := write(cfg)+-
+	err := write(cfg)
 	if err != nil {
 		log.Print("Error setting username")
 		return err
@@ -88,16 +88,3 @@ func write(cfg *Config) error {
 	
 	return nil
 }
-
-
-func handlersLogin(s *state, cmd command) error {
-	if cmd == nil {
-		return fmt.Errorf("Login details empty")
-	}
-	err := s.config.SetUser(cmd.login)
-	if err != nil {
-		return fmt.Errorf("Error setting user")
-	}
-	fmt.Println("Current user %v", cmd.login)
-}
-
