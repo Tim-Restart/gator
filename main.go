@@ -5,6 +5,7 @@ import (
 	"gator/internal/config"
 	"log"
 	"os"
+	"github.com/google/uuid"
 )
 
 type state struct {
