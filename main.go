@@ -1,16 +1,25 @@
 package main
 
+import _ "github.com/lib/pq"
+
 import (
 	"fmt"
 	"gator/internal/config"
 	"log"
 	"os"
 	"github.com/google/uuid"
+	"gator/internal/database"
+	"time"
+	"context"
+	"database/sql"
 )
 
 type state struct {
 	config		*config.Config
+	db			*database.Queries
 }
+
+
 
 // Holds the command and arguments
 type command struct {
@@ -34,25 +43,13 @@ func (c *commands) register(name string, f func(*state, command) error) {
 	c.cmds[name] = f
 }
 
-func handlerLogin(s *state, cmd command) error {
-	if len(cmd.args) == 0  {
-		return fmt.Errorf("Login details empty")
-	}
-	err := s.config.SetUser(cmd.args[0])
-	if err != nil {
-		return fmt.Errorf("Error setting user")
-		os.Exit(1)
-	}
-	fmt.Printf("Current user %v\n", cmd.args[0])
-	return nil
-}
+
 
 
 
 
 func main() {
 
-	
 
 	cfg, err := config.Read()
 	if err != nil {
@@ -60,9 +57,23 @@ func main() {
 		return
 	}
 
+	db, err := sql.Open("postgres", cfg.DbURL)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+    // ...continue with program, using db
+	dbQueries := database.New(db)
+	
+
+	
+
 	appState := state{
 		config: &cfg,
+		db: dbQueries,
 	}
+
+
 
 	
 
@@ -71,6 +82,7 @@ func main() {
 	}
 	
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
 
 	// Using command line arguements os.Args 
 
@@ -97,8 +109,89 @@ func main() {
 	}
 
 
-	cfg, err = config.Read()
-	fmt.Println(cfg)
+	
 	return
+
+}
+
+// Main function closed
+// Handlers below
+
+func handlerLogin(s *state, cmd command) error {
+	ctx := context.Background()
+	if len(cmd.args) == 0  {
+		return fmt.Errorf("Login details empty")
+	}
+	newUser := cmd.args[0]
+	userReturned, err := s.db.GetUser(ctx, newUser)
+	if err != nil {
+		fmt.Print("Error checking existing user\n")
+		return err
+	}
+	user := userReturned.Name
+	if user == "" {
+		fmt.Print("User doesn't exist")
+		os.Exit(1)
+	}
+	/*
+	if newUser != user {
+		fmt.Println("User not registered")
+		os.Exit(1)
+	}
+	*/
+	err = s.config.SetUser(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("Error setting user")
+		os.Exit(1)
+	}
+	fmt.Printf("Current user %v\n", cmd.args[0])
+	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	ctx := context.Background()
+	if len(cmd.args) == 0  {
+		return fmt.Errorf("register details empty")
+	}
+	
+	newUser := cmd.args[0]
+	user, err := s.db.GetUser(ctx, newUser)
+	if err != nil {
+		fmt.Print("Error checking existing user")
+		return err
+	}
+	checkUser := user.Name
+
+	if checkUser == newUser {
+		fmt.Println("Username already exists")
+		os.Exit(1)
+	}
+
+	newArgs := database.CreateUserParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name: newUser,
+	}
+
+	_, err = s.db.CreateUser(ctx, newArgs)
+	if err != nil {
+		fmt.Println("Unable to create new user")
+		os.Exit(1)
+	}
+	err = s.config.SetUser(newUser)
+	if err != nil {
+		return fmt.Errorf("Error setting user")
+		os.Exit(1)
+	}
+	log.Printf("New User added, Welcome %v\n", newUser)
+	log.Printf("ID: %v\n", newArgs.ID)
+	log.Printf("Created At: %v\n", newArgs.CreatedAt)
+	log.Printf("Updated At: %v\n", newArgs.UpdatedAt)
+	log.Printf("Name: %v\n", newArgs.Name)
+
+
+	return nil
+	
 
 }
