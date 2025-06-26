@@ -12,6 +12,7 @@ import (
 	"time"
 	"context"
 	"database/sql"
+	"errors"
 )
 
 type state struct {
@@ -56,6 +57,8 @@ func main() {
 		log.Print("Error reading file")
 		return
 	}
+
+	log.Printf("cfg.DbURL: %v", cfg.DbURL)
 
 	db, err := sql.Open("postgres", cfg.DbURL)
     if err != nil {
@@ -125,6 +128,7 @@ func handlerLogin(s *state, cmd command) error {
 	newUser := cmd.args[0]
 	userReturned, err := s.db.GetUser(ctx, newUser)
 	if err != nil {
+		log.Printf("This is the error: %v", err)
 		fmt.Print("Error checking existing user\n")
 		return err
 	}
@@ -155,17 +159,17 @@ func handlerRegister(s *state, cmd command) error {
 	}
 	
 	newUser := cmd.args[0]
-	user, err := s.db.GetUser(ctx, newUser)
-	if err != nil {
+	_, err := s.db.GetUser(ctx, newUser)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Print("Welcome new user")
+	} else if err != nil {
 		fmt.Print("Error checking existing user")
 		return err
-	}
-	checkUser := user.Name
-
-	if checkUser == newUser {
+	} else {
 		fmt.Println("Username already exists")
 		os.Exit(1)
 	}
+		
 
 	newArgs := database.CreateUserParams{
 		ID: uuid.New(),
@@ -193,5 +197,4 @@ func handlerRegister(s *state, cmd command) error {
 
 	return nil
 	
-
 }
