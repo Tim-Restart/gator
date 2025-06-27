@@ -239,10 +239,9 @@ func handleGetUsers(s *state, cmd command) error {
 		}
 		
 	}
-
-
 	return nil
-
 }
+
+func fetchFeed(ctx context.Context, feedURL string) (*RSSFEED, error)
 
 
