@@ -86,6 +86,7 @@ func main() {
 	
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerResetDB)
 
 	// Using command line arguements os.Args 
 
@@ -107,7 +108,8 @@ func main() {
 		
 	err = cmds.run(&appState, cmd)
 	if err != nil {
-		fmt.Println("Error executing login")
+		fmt.Println("Error executing command")
+		fmt.Print(err)
 		os.Exit(1)
 	}
 
@@ -197,4 +199,14 @@ func handlerRegister(s *state, cmd command) error {
 
 	return nil
 	
+}
+
+func handlerResetDB(s *state, cmd command) error {
+	ctx := context.Background()
+	err := s.db.DeleteUsers(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Database reset complete")
+	return nil
 }
