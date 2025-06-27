@@ -87,6 +87,7 @@ func main() {
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerResetDB)
+	cmds.register("users", handleGetUsers)
 
 	// Using command line arguements os.Args 
 
@@ -210,3 +211,38 @@ func handlerResetDB(s *state, cmd command) error {
 	fmt.Println("Database reset complete")
 	return nil
 }
+
+func handleGetUsers(s *state, cmd command) error {
+	ctx := context.Background()
+
+		
+	// GetUsers command for all users
+	// Will return a struct full of the users
+	// Need to print to console
+
+	users, err := s.db.GetAllUsers(ctx)
+	if err != nil {
+
+		if err.Error() == "sql: no rows in result set" {
+			// No users found return
+			fmt.Println("No users found")
+			return err
+		}
+	}
+
+	for _, user := range users {
+		
+		if user.Name == s.config.CurrentUserName {
+		fmt.Printf("* %v (current)\n", user.Name)
+		} else {
+			fmt.Printf("* %v\n", user.Name)
+		}
+		
+	}
+
+
+	return nil
+
+}
+
+
