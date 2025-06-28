@@ -84,10 +84,13 @@ func main() {
 		cmds: make(map[string]func(*state, command) error),
 	}
 	
+	// Register command handlers here
+
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerResetDB)
 	cmds.register("users", handleGetUsers)
+	cmds.register("agg", handlerAgg)
 
 	// Using command line arguements os.Args 
 
@@ -242,6 +245,26 @@ func handleGetUsers(s *state, cmd command) error {
 	return nil
 }
 
-func fetchFeed(ctx context.Context, feedURL string) (*RSSFEED, error)
+func handlerAgg(s *state, cmd command) error {
+	ctx := context.Background()
+	var url string
+
+	if len(cmd.args) > 0 {
+		url = cmd.args[0]
+	} else {
+		url = "https://www.wagslane.dev/index.xml"
+	}
+
+	response, err := fetchFeed(ctx, url)
+	if err != nil {
+		fmt.Println("Error fetching feed")
+		fmt.Printf("Error: %v", err)
+		return err
+	}
+
+	fmt.Println(response)
+	return nil
+}
+
 
 
