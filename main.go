@@ -91,6 +91,7 @@ func main() {
 	cmds.register("reset", handlerResetDB)
 	cmds.register("users", handleGetUsers)
 	cmds.register("agg", handlerAgg)
+	cmds.register("addfeed", handlerAddFeed)
 
 	// Using command line arguements os.Args 
 
@@ -143,12 +144,7 @@ func handlerLogin(s *state, cmd command) error {
 		fmt.Print("User doesn't exist")
 		os.Exit(1)
 	}
-	/*
-	if newUser != user {
-		fmt.Println("User not registered")
-		os.Exit(1)
-	}
-	*/
+
 	err = s.config.SetUser(cmd.args[0])
 	if err != nil {
 		return fmt.Errorf("Error setting user")
@@ -266,5 +262,56 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+	ctx := context.Background()
+
+	var name string
+	var url string
+	var id uuid.UUID
+
+	user := s.config.CurrentUserName
+
+	userName, err := s.db.GetUser(ctx, user)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Print("User doesn't exist")
+	} else if err != nil {
+		fmt.Print("Error checking existing user")
+		return err
+	} else {
+		id = userName.ID
+	}
+
+	if len(cmd.args) > 0 {
+		name = cmd.args[0]
+	} else {
+		fmt.Println("No name provided")
+		os.Exit(1)
+	}
+
+	if len(cmd.args) > 1 {
+		url = cmd.args[1]
+	} else {
+		fmt.Println("No url provided")
+		os.Exit(1)
+	}
+
+	newFeed := database.CreateFeedParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name: name,
+		Url: url,
+		UserID: id,
+	}
+
+	feed, err := s.db.CreateFeed(ctx, newFeed)
+	if err != nil {
+		fmt.Println("Error creating feed")
+		os.Exit(1)
+	}
+
+	fmt.Println(feed)
+	return nil
+}
 
 
