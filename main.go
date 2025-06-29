@@ -92,6 +92,7 @@ func main() {
 	cmds.register("users", handleGetUsers)
 	cmds.register("agg", handlerAgg)
 	cmds.register("addfeed", handlerAddFeed)
+	cmds.register("feeds", handlerFeeds)
 
 	// Using command line arguements os.Args 
 
@@ -314,4 +315,35 @@ func handlerAddFeed(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFeeds(s *state, cmd command) error {
+	ctx := context.Background()
+	//var feed database.CreateFeedParams
+	// Returns all the feeds
+	feed, err := s.db.GetFeeds(ctx)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			// No users found return
+			fmt.Println("No feeds found")
+			return err
+	}
+		fmt.Println("Error getting feeds")
+		return err	
+	}
 
+	// Name of the feed
+
+	for _, feedItem := range feed {
+		
+		fmt.Printf("Name: %v\n", feedItem.Name)
+		fmt.Printf("URL: %v\n", feedItem.Url)
+		userId, err := s.db.GetUserName(ctx, feedItem.UserID)
+		if err != nil {
+			fmt.Println("Error retreiving user name")
+			os.Exit(1)
+		}
+		fmt.Printf("User: %v\n", userId)
+		}
+	
+	return nil
+
+}
