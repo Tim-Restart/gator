@@ -93,6 +93,8 @@ func main() {
 	cmds.register("agg", handlerAgg)
 	cmds.register("addfeed", handlerAddFeed)
 	cmds.register("feeds", handlerFeeds)
+	cmds.register("follow", handlerFollow)
+	cmds.register("following", handlerFollowing)
 
 	// Using command line arguements os.Args 
 
@@ -191,11 +193,11 @@ func handlerRegister(s *state, cmd command) error {
 		return fmt.Errorf("Error setting user")
 		os.Exit(1)
 	}
-	log.Printf("New User added, Welcome %v\n", newUser)
-	log.Printf("ID: %v\n", newArgs.ID)
-	log.Printf("Created At: %v\n", newArgs.CreatedAt)
-	log.Printf("Updated At: %v\n", newArgs.UpdatedAt)
-	log.Printf("Name: %v\n", newArgs.Name)
+	fmt.Printf("New User added, Welcome %v\n", newUser)
+	fmt.Printf("ID: %v\n", newArgs.ID)
+	fmt.Printf("Created At: %v\n", newArgs.CreatedAt)
+	fmt.Printf("Updated At: %v\n", newArgs.UpdatedAt)
+	fmt.Printf("Name: %v\n", newArgs.Name)
 
 
 	return nil
@@ -346,4 +348,82 @@ func handlerFeeds(s *state, cmd command) error {
 	
 	return nil
 
+}
+
+
+func handlerFollow(s *state, cmd command) error {
+	ctx := context.Background()
+	var urlID uuid.UUID
+	user := s.config.CurrentUserName
+
+	// Checks to make sure there is a cmd argument and assigns it to URL
+	if len(cmd.args) > 0 {
+		url = cmd.args[0]
+	} else {
+		fmt.Println("No url provided")
+		os.Exit(1)
+	}
+
+	feedURL, err := GetFeedUrl(ctx, url)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			// No users found create a new record
+			fmt.Println("URL not found, creating new record")
+
+			err = handlerAddFeed(s, cmd)
+			if err != nil {
+				fmt.Println("Error creating new feed")
+				return err
+			}
+			feedURL, err := GetFeedUrl(ctx, url)
+			if err != nil {
+				fmt.Println("At least we aren't going round in circles...")
+			}
+			urlID = feedURL.FeedID
+
+			} else {
+				fmt.Println("Error getting URL")
+				return err
+			}
+	}
+
+	urlID = feedFollow.FeedID
+	userID, err := getUserId(user)
+	if err != nil {
+		fmt.Println("Error getting user ID")
+		return err
+	} 
+
+	newFollow := CreateFeedFollowParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID: userID
+		FeedID: urlID
+	}
+
+	feedFollow, err := CreateFeedFollow(ctx, newFollow)
+	if err != nil {
+		fmt.Println("Error creating new feed follow")
+		os.Exit(1)
+	}
+
+
+	
+	fmt.Printf("Feed Name: %v\n", feedFollow.Name)
+	fmt.Printf("Feed User: %v\n", user)
+}
+
+func handlerFollowing(s *state, cmd command) error {
+	ctx := context.Background()
+	user := s.config.CurrentUserName
+
+	userID, err := getUserId(user)
+	if err != nil {
+		fmt.Println("Error getting user ID")
+		return err
+	} 
+
+	follows, err := GetFeedFollowsForUser(ctx, userID.String())
+	
 }
