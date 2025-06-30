@@ -421,9 +421,19 @@ func handlerFollowing(s *state, cmd command) error {
 	userID, err := getUserId(user)
 	if err != nil {
 		fmt.Println("Error getting user ID")
-		return err
+		os.Exit(1)
 	} 
 
 	follows, err := GetFeedFollowsForUser(ctx, userID.String())
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			// No users found create a new record
+			fmt.Println("no feed follows for this user")
+			os.Exit(1)
+		} else {
+			fmt.Println("Error getting feed follows for user")
+			os.Exit(1)
+		}
 	
+
 }
