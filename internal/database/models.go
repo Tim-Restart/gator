@@ -23,7 +23,7 @@ type FeedFollow struct {
 	ID        uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	UserID    string
+	UserID    uuid.UUID
 	FeedID    uuid.UUID
 }
 
