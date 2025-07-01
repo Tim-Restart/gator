@@ -330,6 +330,26 @@ func handlerAddFeed(s *state, cmd command) error {
 	}
 
 	fmt.Println(feed)
+
+	// Add a feed follow here - refactor later this to a helper function
+
+	newFollow := database.CreateFeedFollowParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID: id, 
+		FeedID: feed.ID,
+	}
+
+	feedFollow, err := s.db.CreateFeedFollow(ctx, newFollow)
+	if err != nil {
+		fmt.Println("Error creating new feed follow")
+		os.Exit(1)
+	}
+
+	fmt.Printf("%v now following %v", userName, feedFollow.ID)
+
+
 	return nil
 }
 
@@ -415,7 +435,7 @@ func handlerFollow(s *state, cmd command) error {
 		ID: uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		UserID: userID, // This needs to be changed to a UUID
+		UserID: userID, 
 		FeedID: urlID,
 	}
 
