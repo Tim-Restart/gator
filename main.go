@@ -92,10 +92,11 @@ func main() {
 	cmds.register("reset", handlerResetDB)
 	cmds.register("users", handleGetUsers)
 	cmds.register("agg", handlerAgg)
-	cmds.register("addfeed", handlerAddFeed)
 	cmds.register("feeds", handlerFeeds)
-	cmds.register("follow", handlerFollow)
-	cmds.register("following", handlerFollowing)
+	// Handlers that require login
+	cmds.register("addfeed", middlewareLoggedIn(handlerAddFeed))
+	cmds.register("follow", middlewareLoggedIn(handlerFollow))
+	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 
 	// Using command line arguements os.Args 
 
@@ -128,7 +129,9 @@ func main() {
 
 }
 
-// Helper function
+// Main function closed
+
+// Helper functions
 
 func getUserId(s *state, user string) (uuid.UUID, error) {
 	
@@ -143,7 +146,52 @@ func getUserId(s *state, user string) (uuid.UUID, error) {
 	return userName.ID, nil
 }
 
-// Main function closed
+/*
+Fix this later
+
+func newFeedFollow(s *state, user_id uuid.UUID, feed_id uuid.UUID) error {
+newFollow := database.CreateFeedFollowParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID: id, 
+		FeedID: feed.ID,
+	}
+
+	feedFollow, err := s.db.CreateFeedFollow(ctx, newFollow)
+	if err != nil {
+		fmt.Println("Error creating new feed follow")
+		os.Exit(1)
+	}
+	return nil
+}
+
+*/
+
+// Middleware function
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	// Handle the logged in check here
+	// Takes a handler
+	return func(s *state, cmd command) error {
+		ctx := context.Background()
+		user := s.config.CurrentUserName
+
+		userName, err := s.db.GetUser(ctx, user)
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Println("User doesn't exist")
+			return err
+		} else if err != nil {
+			fmt.Println("Error checking existing user")
+			return err
+		} 
+		return handler(s, cmd, userName)
+
+	}
+}
+
+
+
 // Handlers below
 
 func handlerLogin(s *state, cmd command) error {
@@ -281,24 +329,12 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	ctx := context.Background()
 
 	var name string
 	var url string
-	var id uuid.UUID
-
-	user := s.config.CurrentUserName
-
-	userName, err := s.db.GetUser(ctx, user)
-	if errors.Is(err, sql.ErrNoRows) {
-		log.Print("User doesn't exist")
-	} else if err != nil {
-		fmt.Print("Error checking existing user")
-		return err
-	} else {
-		id = userName.ID
-	}
+	
 
 	if len(cmd.args) > 0 {
 		name = cmd.args[0]
@@ -320,7 +356,7 @@ func handlerAddFeed(s *state, cmd command) error {
 		UpdatedAt: time.Now(),
 		Name: name,
 		Url: url,
-		UserID: id,
+		UserID: user.ID,
 	}
 
 	feed, err := s.db.CreateFeed(ctx, newFeed)
@@ -337,7 +373,7 @@ func handlerAddFeed(s *state, cmd command) error {
 		ID: uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		UserID: id, 
+		UserID: user.ID, 
 		FeedID: feed.ID,
 	}
 
@@ -347,7 +383,7 @@ func handlerAddFeed(s *state, cmd command) error {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%v now following %v", userName, feedFollow.ID)
+	fmt.Printf("%v now following %v", user.Name, feedFollow.ID)
 
 
 	return nil
@@ -387,11 +423,11 @@ func handlerFeeds(s *state, cmd command) error {
 }
 
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	ctx := context.Background()
 	var urlID uuid.UUID
 	var url string
-	user := s.config.CurrentUserName
+
 
 	// Checks to make sure there is a cmd argument and assigns it to URL
 	if len(cmd.args) > 0 {
@@ -407,7 +443,7 @@ func handlerFollow(s *state, cmd command) error {
 			// No users found create a new record
 			fmt.Println("URL not found, creating new record")
 
-			err = handlerAddFeed(s, cmd)
+			err = handlerAddFeed(s, cmd, user)
 			if err != nil {
 				fmt.Println("Error creating new feed")
 				return err
@@ -425,17 +461,12 @@ func handlerFollow(s *state, cmd command) error {
 	}
 
 	urlID = feedURL.ID
-	userID, err := getUserId(s, user)
-	if err != nil {
-		fmt.Println("Error getting user ID")
-		return err
-	} 
 
 	newFollow := database.CreateFeedFollowParams{
 		ID: uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		UserID: userID, 
+		UserID: user.ID, 
 		FeedID: urlID,
 	}
 
@@ -446,21 +477,14 @@ func handlerFollow(s *state, cmd command) error {
 	}
 
 	fmt.Printf("Feed Name: %v\n", feedFollow.FeedName)
-	fmt.Printf("Feed User: %v\n", user)
+	fmt.Printf("Feed User: %v\n", user.Name)
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollowing(s *state, cmd command, user database.User) error {
 	ctx := context.Background()
-	user := s.config.CurrentUserName
 
-	userID, err := getUserId(s, user)
-	if err != nil {
-		fmt.Println("Error getting user ID")
-		os.Exit(1)
-	} 
-
-	follows, err := s.db.GetFeedFollowsForUser(ctx, userID)
+	follows, err := s.db.GetFeedFollowsForUser(ctx, user.ID)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			// No users found create a new record
