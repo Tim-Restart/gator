@@ -75,3 +75,12 @@ WHERE feed_follows.user_id = $1;
 -- name: DeleteFeedFollows :exec
 DELETE FROM feed_follows
 WHERE user_id = $1 OR feed_id = $2;
+
+-- name: MarkFeedFetched :exec
+UPDATE feeds
+SET updated_at = $1, last_fetched_at = $2
+WHERE id = $3;
+
+-- name: GetNextFeedToFetch :one
+SELECT id FROM feeds
+ORDER BY last_fetched_at NULLS FIRST; 

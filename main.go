@@ -498,7 +498,7 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 	}
 
 	for i, feed := range follows {
-		fmt.Printf("%v. Feeds being followed: %v", i, feed.FeedName)
+		fmt.Printf("%v. Feeds being followed: %v", (i + 1), feed.FeedName)
 	}
 	return nil
 
@@ -537,6 +537,51 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	}
 	fmt.Printf("%v no longer following: %v", user.Name, feed.Name)
 	return nil
+}
 
+func scrapeFeeds(s *state) error {
+	ctx := context.Background()
+	
+	feedID, err := s.db.GetNextFeedToFetch(ctx)
+	if err.Error() == "sql: no rows in result set" {
+			// No users found create a new record
+			fmt.Println("No feeds found being followed, grow your user base")
+		} else {
+			fmt.Println("Error gettin next Feed Details")
+			return err
+		}
+
+	markReturns := database.MarkFeedFetchedParams{
+		UpdatedAt: time.Now(),
+		LastFetchedAt: time.Now(),
+		ID: feedID,
+	}
+
+	err = s.db.MarkFeedFetched(ctx, markReturns)
+	if err != nil {
+		fmt.Println("Error marking feed as fetched")
+		return err
+	}
+
+	feed, err := s.db.GetFeedUrl(ctx, url)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			// No users found create a new record
+			fmt.Println("URL not found")
+			return err
+		} else {
+			fmt.Println("Error getting Feed Details")
+			return err
+		}
+	}
+
+	response, err := fetchFeed(ctx, feed.Url)
+	if err != nil {
+		fmt.Println("Error fetching feed")
+		return err
+	}
+
+	fmt.Println(response)
+	return nil
 
 }
