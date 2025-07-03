@@ -97,6 +97,7 @@ func main() {
 	cmds.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	cmds.register("follow", middlewareLoggedIn(handlerFollow))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
+	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
 
 	// Using command line arguements os.Args 
 
@@ -503,3 +504,39 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 
 }	
 
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	ctx := context.Background()
+	var url string
+
+	if len(cmd.args) > 0 {
+		url = cmd.args[0]
+	} else {
+		fmt.Println("No url provided")
+		os.Exit(1)
+	}
+
+	feed, err := s.db.GetFeedUrl(ctx, url)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			// No users found create a new record
+			fmt.Println("URL not found, cannot unfollow")
+		} else {
+			fmt.Println("Error getting Feed Details")
+			return err
+		}
+	}
+
+	feedUnfollow := database.DeleteFeedFollowsParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	}
+	err = s.db.DeleteFeedFollows(ctx, feedUnfollow)
+	if err != nil {
+		fmt.Println("Error unfollowing feed")
+		return err
+	}
+	fmt.Printf("%v no longer following: %v", user.Name, feed.Name)
+	return nil
+
+
+}
