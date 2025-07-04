@@ -384,7 +384,7 @@ func handlerAddFeed(s *state, cmd command, user database.User) error {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%v now following %v", user.Name, feedFollow.ID)
+	fmt.Printf("%v now following %v\n", user.Name, feedFollow.ID)
 
 
 	return nil
@@ -546,14 +546,26 @@ func scrapeFeeds(s *state) error {
 	if err.Error() == "sql: no rows in result set" {
 			// No users found create a new record
 			fmt.Println("No feeds found being followed, grow your user base")
-		} else {
-			fmt.Println("Error gettin next Feed Details")
-			return err
-		}
+	} else {
+		fmt.Println("Error getting next Feed Details")
+		return err
+	}
+
+	feedInfo, err := s.db.GetFeedURLfromID(ctx, feedID)
+	if err.Error() == "sql: no rows in result set" {
+			// No users found create a new record
+			fmt.Println("No feeds found with given ID")
+	} else {
+		fmt.Println("Error getting feed information")
+		return err
+	}
 
 	markReturns := database.MarkFeedFetchedParams{
 		UpdatedAt: time.Now(),
-		LastFetchedAt: time.Now(),
+		LastFetchedAt: sql.NullTime{
+			Time: time.Now(),
+			Valid: true,
+		},
 		ID: feedID,
 	}
 
@@ -563,7 +575,7 @@ func scrapeFeeds(s *state) error {
 		return err
 	}
 
-	feed, err := s.db.GetFeedUrl(ctx, url)
+	feed, err := s.db.GetFeedUrl(ctx, feedInfo.Url)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			// No users found create a new record

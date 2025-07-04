@@ -257,6 +257,26 @@ func (q *Queries) GetFeedFollowsForUser(ctx context.Context, userID uuid.UUID) (
 	return items, nil
 }
 
+const getFeedURLfromID = `-- name: GetFeedURLfromID :one
+SELECT id, created_at, updated_at, name, url, user_id, last_fetched_at FROM feeds
+WHERE id = $1
+`
+
+func (q *Queries) GetFeedURLfromID(ctx context.Context, id uuid.UUID) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeedURLfromID, id)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Name,
+		&i.Url,
+		&i.UserID,
+		&i.LastFetchedAt,
+	)
+	return i, err
+}
+
 const getFeedUrl = `-- name: GetFeedUrl :one
 SELECT id, created_at, updated_at, name, url, user_id, last_fetched_at FROM feeds 
 WHERE url = $1

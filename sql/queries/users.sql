@@ -84,3 +84,8 @@ WHERE id = $3;
 -- name: GetNextFeedToFetch :one
 SELECT id FROM feeds
 ORDER BY last_fetched_at NULLS FIRST; 
+
+-- name: GetFeedURLfromID :one
+SELECT * FROM feeds
+WHERE id = $1;
+
