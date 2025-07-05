@@ -86,7 +86,7 @@ func main() {
 	}
 	
 	// Register command handlers here
-
+	// cmds.register("help", handlerHelp) // Prints all commands and usage
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerResetDB)
@@ -99,7 +99,12 @@ func main() {
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
 
-	// Using command line arguements os.Args 
+	// Using command line arguements os.Args
+	
+	if len(os.Args) == 2 && os.Args[1] == "help" {
+		handlerHelp()
+		os.Exit(1)
+	}
 
 	if len(os.Args) < 2 {
 		fmt.Println("Command or username not provided")
@@ -194,6 +199,33 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 
 
 // Handlers below
+
+// Prints to the console all commands and their usage
+func handlerHelp() {
+	fmt.Printf("Welcome to Gator, an RSS Feeds agreGATOR for the console\n")
+	fmt.Printf("Commands and usage below:\n\n")
+	fmt.Printf("Login: enter a user name to login, if not registered will register the user\n")
+	fmt.Printf("Usage: login [username]\n\n")
+	fmt.Printf("Register: register a new username if not already created\n")
+	fmt.Printf("Usage: register [username]\n\n")
+	return
+}
+
+/*
+cmds.register("help", handlerHelp) // Prints all commands and usage
+	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerResetDB)
+	cmds.register("users", handleGetUsers)
+	cmds.register("agg", handlerAgg)
+	cmds.register("feeds", handlerFeeds)
+	// Handlers that require login
+	cmds.register("addfeed", middlewareLoggedIn(handlerAddFeed))
+	cmds.register("follow", middlewareLoggedIn(handlerFollow))
+	cmds.register("following", middlewareLoggedIn(handlerFollowing))
+	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+
+	*/
 
 func handlerLogin(s *state, cmd command) error {
 	ctx := context.Background()
@@ -310,7 +342,40 @@ func handleGetUsers(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	ctx := context.Background()
+	
+	var timer string
+
+	if len(cmd.args) > 0 {
+		timer = cmd.args[0]
+	} else {
+		timer = "60s"
+	}
+	// Convert the int here somewhere using time.ParseDuration into a time.Duration value
+	
+	timeBetweenRequests, err := time.ParseDuration(timer)
+	if err != nil {
+		fmt.Println("Error parsing duration to timer")
+		return err
+	}
+
+	fmt.Printf("Collecting feeds every %v\n", timeBetweenRequests)
+
+
+
+
+	// Create a new ticker and then use a for loop to call scrapefeeds
+
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		_ = scrapeFeeds(s)
+	}
+
+	return nil
+
+
+	/*
+
+	//Old logic for the Agg function - now held in the scrapeFeeds function
 	var url string
 
 	if len(cmd.args) > 0 {
@@ -328,6 +393,8 @@ func handlerAgg(s *state, cmd command) error {
 
 	fmt.Println(response)
 	return nil
+
+	*/
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
@@ -543,22 +610,32 @@ func scrapeFeeds(s *state) error {
 	ctx := context.Background()
 	
 	feedID, err := s.db.GetNextFeedToFetch(ctx)
-	if err.Error() == "sql: no rows in result set" {
+	if err !=nil {
+		if err.Error() == "sql: no rows in result set" {
 			// No users found create a new record
 			fmt.Println("No feeds found being followed, grow your user base")
-	} else {
-		fmt.Println("Error getting next Feed Details")
-		return err
+			return nil
+		} else {
+			fmt.Println("Error getting next Feed Details")
+			return err
+		}
 	}
 
+
+
 	feedInfo, err := s.db.GetFeedURLfromID(ctx, feedID)
-	if err.Error() == "sql: no rows in result set" {
-			// No users found create a new record
-			fmt.Println("No feeds found with given ID")
-	} else {
-		fmt.Println("Error getting feed information")
-		return err
-	}
+		if err != nil {
+			if err.Error() == "sql: no rows in result set" {
+					// No users found create a new record
+					fmt.Println("No feeds found with given ID")
+					return nil
+			} else {
+				fmt.Println("Error getting feed information")
+				return err
+			}
+		}
+
+
 
 	markReturns := database.MarkFeedFetchedParams{
 		UpdatedAt: time.Now(),
@@ -575,16 +652,25 @@ func scrapeFeeds(s *state) error {
 		return err
 	}
 
+
+
 	feed, err := s.db.GetFeedUrl(ctx, feedInfo.Url)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			// No users found create a new record
 			fmt.Println("URL not found")
-			return err
+			return nil
 		} else {
 			fmt.Println("Error getting Feed Details")
 			return err
 		}
+	}
+
+
+
+	if feed.Url == "" {
+		fmt.Print("Retrieved feed was nil or empty, skipping...")
+		return nil
 	}
 
 	response, err := fetchFeed(ctx, feed.Url)
@@ -593,7 +679,14 @@ func scrapeFeeds(s *state) error {
 		return err
 	}
 
-	fmt.Println(response)
+
+
+	// fmt.Println(response)
+	
+	for i := range response.Channel.Item {
+		fmt.Printf("Title: %v : %v\n", response.Channel.Title, response.Channel.Item[i].Title)
+	}
+	
 	return nil
 
 }
