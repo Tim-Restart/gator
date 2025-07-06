@@ -89,3 +89,28 @@ ORDER BY last_fetched_at NULLS FIRST;
 SELECT * FROM feeds
 WHERE id = $1;
 
+-- name: CreatePosts :one
+INSERT INTO posts (id, created_at, updated_at, title, description, published_at)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6
+)
+RETURNING *;
+
+-- name: GetPostsForUser :many
+SELECT 
+    posts.*, 
+    feeds.name as feed_name,
+    users.name as user_name
+FROM posts
+INNER JOIN feeds ON posts.feed_id = feeds.id
+INNER JOIN feed_follows ON posts.feed_id = feed_follows.feed_id
+INNER JOIN users ON feed_follows.user_id = users.id
+WHERE feed_follows.user_id = $1
+ORDER BY posts.updated_at DESC 
+LIMIT $2;
+

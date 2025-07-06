@@ -686,6 +686,34 @@ func scrapeFeeds(s *state) error {
 	for i := range response.Channel.Item {
 		fmt.Printf("Title: %v : %v\n", response.Channel.Title, response.Channel.Item[i].Title)
 	}
+
+	newPost := database.CreatePostsParams{
+	ID: uuid.New(),
+	CreatedAt: time.Now(),
+	UpdatedAt: time.Now(),
+	Title: response.Channel.Item.Title,
+	
+	PublishedAt: sql.NullTime{
+					String: response.Channel.Item.PubDate,
+					Valid: true
+	}
+	}
+	// Handle description conditionally
+	if response.Channel.Item.Description != "" {
+		newPost.Description = sql.NullString{String: response.Channel.Item.Description, Valid: true}
+	} else {
+		newPost.Description = sql.NullString{Valid: false}
+	}
+	// Check and populate the published date
+	if response.Channel.Item.PubDate != "" {
+		pubTime, err := time.Parse(time.RFC822, response.Channel.Item.PubDate)
+		if err != nil {
+			fmt.Println("Error parsing time, published time will be set to null")
+			newPost.PublishedAt = sql.NullTime{Valid: false}
+		} else {
+    	newPost.PublishedAt = sql.NullTime{Time: pubTime, Valid: true}
+		}
+	} 
 	
 	return nil
 
