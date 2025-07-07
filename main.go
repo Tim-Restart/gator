@@ -678,42 +678,49 @@ func scrapeFeeds(s *state) error {
 		fmt.Println("Error fetching feed")
 		return err
 	}
-
-
-
-	// fmt.Println(response)
 	
 	for i := range response.Channel.Item {
 		fmt.Printf("Title: %v : %v\n", response.Channel.Title, response.Channel.Item[i].Title)
 	}
 
-	newPost := database.CreatePostsParams{
-	ID: uuid.New(),
-	CreatedAt: time.Now(),
-	UpdatedAt: time.Now(),
-	Title: response.Channel.Item.Title,
 	
-	PublishedAt: sql.NullTime{
-					String: response.Channel.Item.PubDate,
-					Valid: true
-	}
-	}
-	// Handle description conditionally
-	if response.Channel.Item.Description != "" {
-		newPost.Description = sql.NullString{String: response.Channel.Item.Description, Valid: true}
-	} else {
-		newPost.Description = sql.NullString{Valid: false}
-	}
-	// Check and populate the published date
-	if response.Channel.Item.PubDate != "" {
-		pubTime, err := time.Parse(time.RFC822, response.Channel.Item.PubDate)
-		if err != nil {
+
+	for i := range response.Channel.Item {
+
+		newPost := database.CreatePostsParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Title: response.Channel.Item[i].Title,
+		Url: feed.Url,
+		FeedID: feedID,
+		}
+	
+		// Handle description conditionally
+		if response.Channel.Item[i].Description != "" {
+			newPost.Description = sql.NullString{String: response.Channel.Item[i].Description, Valid: true}
+		} else {
+			newPost.Description = sql.NullString{Valid: false}
+		}
+		// Check and populate the published date
+		if response.Channel.Item[i].PubDate != "" {
+			pubTime, err := time.Parse(time.RFC822, response.Channel.Item[i].PubDate)
+			if err != nil {
 			fmt.Println("Error parsing time, published time will be set to null")
 			newPost.PublishedAt = sql.NullTime{Valid: false}
-		} else {
-    	newPost.PublishedAt = sql.NullTime{Time: pubTime, Valid: true}
-		}
+			} else {
+    			newPost.PublishedAt = sql.NullTime{Time: pubTime, Valid: true}
+			}
 	} 
+
+		err := s.db.CreatePosts(ctx, newPost)
+		if err != nil {
+			log.Printf("Error returned from CreatePosts: %v\n", err)
+			return err
+		}
+		fmt.Printf("New post saved to database\n")
+
+	}
 	
 	return nil
 

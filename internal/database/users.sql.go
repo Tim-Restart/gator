@@ -118,15 +118,17 @@ func (q *Queries) CreateFeedFollow(ctx context.Context, arg CreateFeedFollowPara
 	return i, err
 }
 
-const createPosts = `-- name: CreatePosts :one
-INSERT INTO posts (id, created_at, updated_at, title, description, published_at)
+const createPosts = `-- name: CreatePosts :exec
+INSERT INTO posts (id, created_at, updated_at, title, url, description, published_at, feed_id)
 VALUES (
     $1,
     $2,
     $3,
     $4,
     $5,
-    $6
+    $6,
+    $7,
+    $8
 )
 RETURNING id, created_at, updated_at, title, url, description, published_at, feed_id
 `
@@ -136,31 +138,24 @@ type CreatePostsParams struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Title       string
+	Url         string
 	Description sql.NullString
 	PublishedAt sql.NullTime
+	FeedID      uuid.UUID
 }
 
-func (q *Queries) CreatePosts(ctx context.Context, arg CreatePostsParams) (Post, error) {
-	row := q.db.QueryRowContext(ctx, createPosts,
+func (q *Queries) CreatePosts(ctx context.Context, arg CreatePostsParams) error {
+	_, err := q.db.ExecContext(ctx, createPosts,
 		arg.ID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.Title,
+		arg.Url,
 		arg.Description,
 		arg.PublishedAt,
+		arg.FeedID,
 	)
-	var i Post
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Title,
-		&i.Url,
-		&i.Description,
-		&i.PublishedAt,
-		&i.FeedID,
-	)
-	return i, err
+	return err
 }
 
 const createUser = `-- name: CreateUser :one
