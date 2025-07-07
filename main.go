@@ -61,7 +61,7 @@ func main() {
 		return
 	}
 
-	log.Printf("cfg.DbURL: %v", cfg.DbURL)
+	//log.Printf("cfg.DbURL: %v", cfg.DbURL)
 
 	db, err := sql.Open("postgres", cfg.DbURL)
     if err != nil {
