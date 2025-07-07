@@ -98,6 +98,7 @@ func main() {
 	cmds.register("follow", middlewareLoggedIn(handlerFollow))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	//cmds.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	// Using command line arguements os.Args
 	
@@ -606,122 +607,5 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	return nil
 }
 
-func scrapeFeeds(s *state) error {
-	ctx := context.Background()
-	
-	feedID, err := s.db.GetNextFeedToFetch(ctx)
-	if err !=nil {
-		if err.Error() == "sql: no rows in result set" {
-			// No users found create a new record
-			fmt.Println("No feeds found being followed, grow your user base")
-			return nil
-		} else {
-			fmt.Println("Error getting next Feed Details")
-			return err
-		}
-	}
 
 
-
-	feedInfo, err := s.db.GetFeedURLfromID(ctx, feedID)
-		if err != nil {
-			if err.Error() == "sql: no rows in result set" {
-					// No users found create a new record
-					fmt.Println("No feeds found with given ID")
-					return nil
-			} else {
-				fmt.Println("Error getting feed information")
-				return err
-			}
-		}
-
-
-
-	markReturns := database.MarkFeedFetchedParams{
-		UpdatedAt: time.Now(),
-		LastFetchedAt: sql.NullTime{
-			Time: time.Now(),
-			Valid: true,
-		},
-		ID: feedID,
-	}
-
-	err = s.db.MarkFeedFetched(ctx, markReturns)
-	if err != nil {
-		fmt.Println("Error marking feed as fetched")
-		return err
-	}
-
-
-
-	feed, err := s.db.GetFeedUrl(ctx, feedInfo.Url)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			// No users found create a new record
-			fmt.Println("URL not found")
-			return nil
-		} else {
-			fmt.Println("Error getting Feed Details")
-			return err
-		}
-	}
-
-
-
-	if feed.Url == "" {
-		fmt.Print("Retrieved feed was nil or empty, skipping...")
-		return nil
-	}
-
-	response, err := fetchFeed(ctx, feed.Url)
-	if err != nil {
-		fmt.Println("Error fetching feed")
-		return err
-	}
-	
-	for i := range response.Channel.Item {
-		fmt.Printf("Title: %v : %v\n", response.Channel.Title, response.Channel.Item[i].Title)
-	}
-
-	
-
-	for i := range response.Channel.Item {
-
-		newPost := database.CreatePostsParams{
-		ID: uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		Title: response.Channel.Item[i].Title,
-		Url: feed.Url,
-		FeedID: feedID,
-		}
-	
-		// Handle description conditionally
-		if response.Channel.Item[i].Description != "" {
-			newPost.Description = sql.NullString{String: response.Channel.Item[i].Description, Valid: true}
-		} else {
-			newPost.Description = sql.NullString{Valid: false}
-		}
-		// Check and populate the published date
-		if response.Channel.Item[i].PubDate != "" {
-			pubTime, err := time.Parse(time.RFC822, response.Channel.Item[i].PubDate)
-			if err != nil {
-			fmt.Println("Error parsing time, published time will be set to null")
-			newPost.PublishedAt = sql.NullTime{Valid: false}
-			} else {
-    			newPost.PublishedAt = sql.NullTime{Time: pubTime, Valid: true}
-			}
-	} 
-
-		err := s.db.CreatePosts(ctx, newPost)
-		if err != nil {
-			log.Printf("Error returned from CreatePosts: %v\n", err)
-			return err
-		}
-		fmt.Printf("New post saved to database\n")
-
-	}
-	
-	return nil
-
-}
