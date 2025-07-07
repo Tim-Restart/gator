@@ -13,6 +13,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 )
 
 
@@ -98,7 +99,7 @@ func main() {
 	cmds.register("follow", middlewareLoggedIn(handlerFollow))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
-	//cmds.register("browse", middlewareLoggedIn(handlerBrowse))
+	cmds.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	// Using command line arguements os.Args
 	
@@ -607,5 +608,40 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	ctx := context.Background()
+	var browseLimit string
 
+	if len(cmd.args) > 0 {
+		browseLimit = cmd.args[0]
+	} else {
+		fmt.Println("No browse limit provided, set to default 2")
+		browseLimit = "2"
+	}
+
+	records, err := strconv.Atoi(browseLimit)
+	if err != nil {
+		fmt.Println("Error converting to int")
+		os.Exit(1)
+	} 
+
+	getPostParams := database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit: int32(records),
+	}
+
+	userPosts, err := s.db.GetPostsForUser(ctx, getPostParams)
+	if err != nil {
+		fmt.Println("Error getting user post params")
+		os.Exit(1)
+	}
+
+	for _, post := range userPosts {
+		fmt.Printf("Title: %v\n", post.Title)
+		fmt.Printf("Url: %v\n", post.Url)
+	}
+
+	return nil
+
+}
 
