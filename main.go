@@ -13,7 +13,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strconv"
+	//"strconv"
+	"flag"
 )
 
 
@@ -610,8 +611,9 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 
 func handlerBrowse(s *state, cmd command, user database.User) error {
 	ctx := context.Background()
-	var browseLimit string
+	//var browseLimit string
 
+	/* // Going to try and use a flag instead
 	if len(cmd.args) > 0 {
 		browseLimit = cmd.args[0]
 	} else {
@@ -619,15 +621,25 @@ func handlerBrowse(s *state, cmd command, user database.User) error {
 		browseLimit = "2"
 	}
 
+	*/
+
+	browseCmd := flag.NewFlagSet("browse", flag.ExitOnError)
+	limit := browseCmd.Int("limit", 2, "Number of posts to show")
+
+	browseCmd.Parse(cmd.args)
+
+	/* - Not needed for flags
 	records, err := strconv.Atoi(browseLimit)
 	if err != nil {
 		fmt.Println("Error converting to int")
 		os.Exit(1)
 	} 
 
+	*/
+
 	getPostParams := database.GetPostsForUserParams{
 		UserID: user.ID,
-		Limit: int32(records),
+		Limit: int32(*limit),
 	}
 
 	userPosts, err := s.db.GetPostsForUser(ctx, getPostParams)
