@@ -106,7 +106,7 @@ func main() {
 	
 	if len(os.Args) == 2 && os.Args[1] == "help" {
 		handlerHelp()
-		os.Exit(1)
+		return
 	}
 
 	if len(os.Args) < 2 {
@@ -205,22 +205,67 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 
 // Prints to the console all commands and their usage
 func handlerHelp() {
-	fmt.Printf("Welcome to Gator, an RSS Feeds agreGATOR for the console\n")
-	fmt.Printf("Commands and usage below:\n\n")
-	fmt.Printf("Login: enter a user name to login, if not registered will register the user\n")
-	fmt.Printf("Usage: login [username]\n\n")
-	fmt.Printf("Register: register a new username if not already created\n")
-	fmt.Printf("Usage: register [username]\n\n")
+	fmt.Printf(`
+Welcome to Gator, an RSS Feeds agreGATOR for the console.
+
+Commands and usage below
+-------------------------------------------------
+
+Login: enter a user name to login, if not registered will register the user
+
+Usage: login [username]
+
+Register: register a new username if not already created
+
+Usage: register [username]
+
+Reset: resets the database to an empty state.
+This will clear all saved feeds.
+
+Usage: reset
+
+Users: Will print to the console a list of all users.
+It will indicate the current user that is logged in.
+
+Usage: users
+
+Agg: Will commence aggregating the feeds currently followed.
+It takes a time in seconds to fetch a new feed.
+
+If no time is provided it will default to 60 seconds.
+
+Usage: agg 60s
+
+Feeds: Will print the feeds that are saved and the user assoicated
+URL of the feed will also be printed.
+
+Usage: feeds
+
+Add Feed: Will add a new feed for the current user. 
+If the URL is not already saved it will add it to feeds.
+
+Usage: addfeed [title] [url]
+
+Follow: Will follow an existing feed, and if not will create a new feed.
+
+Usage: follow [url]
+
+Unfollow: Will unfollow a feed that the user currently follows.
+
+Usage: unfollow [url]
+
+Browse: Will display the feeds a user currently follows.
+It will default to display 2 records unless specified higher.
+
+Usage: browse -limit 5 
+This will display up to 5 records if avaliable for the current user.
+
+`)
 	return
 }
 
 /*
-cmds.register("help", handlerHelp) // Prints all commands and usage
-	cmds.register("login", handlerLogin)
-	cmds.register("register", handlerRegister)
-	cmds.register("reset", handlerResetDB)
-	cmds.register("users", handleGetUsers)
-	cmds.register("agg", handlerAgg)
+
 	cmds.register("feeds", handlerFeeds)
 	// Handlers that require login
 	cmds.register("addfeed", middlewareLoggedIn(handlerAddFeed))
@@ -605,7 +650,7 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 		fmt.Println("Error unfollowing feed")
 		return err
 	}
-	fmt.Printf("%v no longer following: %v", user.Name, feed.Name)
+	fmt.Printf("%v no longer following: %v\n", user.Name, feed.Name)
 	return nil
 }
 
